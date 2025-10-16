@@ -1,0 +1,30 @@
+# Dependencias
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Directorios de Expo / React Native
+.expo
+.expo-shared
+android
+ios
+web-build
+
+# Configuración local
+.env
+.env.local
+.env.development.local
+.env.production.local
+
+# Git y Docker
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Archivos temporales y caches
+*.log
+*.pid
+.cache
+.tmp
