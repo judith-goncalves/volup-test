@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Modal, Text, View } from "react-native";
+import { commonStyles } from "../styles/commonStyles";
 import { Doctor } from "../types/doctor";
 import { fetchDoctors } from "../utils/api";
 import AddDoctorModal from "./AddDoctorModal";
 import CreateAppointment from "./BookAppointment";
+import Button from "./Button";
 
 interface Props {
   visible: boolean;
@@ -33,36 +27,46 @@ const DoctorsListModal: React.FC<Props> = ({ visible, onClose }) => {
   }, [visible]);
 
   return (
-    <Modal visible={visible} animationType="slide">
-      <View style={{ flex: 1, padding: 16 }}>
-        <Text style={styles.title}>Doctors</Text>
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      <View style={commonStyles.container}>
+        <Text style={commonStyles.title}>Doctors</Text>
 
-        <Pressable style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeText}>Close</Text>
-        </Pressable>
+        <Button
+          title="Close"
+          onPress={onClose}
+          color="#999"
+          textColor="#FFF"
+          closeList
+        />
 
         <FlatList
           data={doctors}
           keyExtractor={(item) => item._id!}
           renderItem={({ item }) => (
-            <View style={styles.doctorCard}>
-              <Text style={styles.doctorText}>
+            <View style={commonStyles.card}>
+              <Text style={commonStyles.row}>
                 {item.name} - {item.specialty}
               </Text>
               <Button
-                color="#0d4565ff"
                 title="Schedule Appointment"
                 onPress={() => setAppointmentModal(item)}
+                color="#0d4565ff"
+                textColor="#FFF"
               />
             </View>
           )}
+          ListEmptyComponent={
+            <Text style={commonStyles.emptyText}>No doctors available</Text>
+          }
         />
 
-        <Button
-          title="Add Doctor"
-          onPress={() => setAddDoctorVisible(true)}
-          color="#0d4565ff"
-        />
+        <View style={{ padding: 20 }}>
+          <Button
+            title="Add Doctor"
+            onPress={() => setAddDoctorVisible(true)}
+            color="#0d4565ff"
+          />
+        </View>
 
         <AddDoctorModal
           visible={addDoctorVisible}
@@ -82,27 +86,3 @@ const DoctorsListModal: React.FC<Props> = ({ visible, onClose }) => {
 };
 
 export default DoctorsListModal;
-
-const styles = StyleSheet.create({
-  doctorCard: {
-    marginVertical: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  doctorText: { fontSize: 16, color: "#333", marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 8, color: "#222" },
-  closeButton: {
-    alignSelf: "flex-end",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: "#999",
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  closeText: { color: "#fff", fontWeight: "bold" },
-});

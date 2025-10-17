@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Button, View } from "react-native";
+import { View } from "react-native";
+import Button from "../components/Button";
 import LoginScreen from "./LoginScreen";
 import RegisterScreen from "./RegisterScreen";
 
@@ -21,17 +22,11 @@ const AuthScreen: React.FC<Props> = ({ onSuccess }) => {
   }
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 20, gap: 25 }}>
-      <Button
-        color="#0d4565ff"
-        title="Login"
-        onPress={() => setMode("login")}
-      />
-      <Button
-        color="#0d4565ff"
-        title="Register"
-        onPress={() => setMode("register")}
-      />
+    <View style={{ flex: 1, justifyContent: "center", padding: 20 }}>
+      <View style={{ gap: 20 }}>
+        <Button title="Login" onPress={() => setMode("login")} />
+        <Button title="Register" onPress={() => setMode("register")} />
+      </View>
     </View>
   );
 };

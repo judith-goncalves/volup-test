@@ -14,9 +14,8 @@ services:
     command: sh -c "npm run seed && npm run dev"
     ports:
       - "3000:3000"
-    environment:
+    env_file:
       - ./hospital-appointment-api/.env
-
     depends_on:
       - mongo
     volumes:
@@ -39,6 +38,9 @@ services:
       - LOCAL_IP=${LOCAL_IP}
     depends_on:
       - backend
+    volumes:
+      - ./hospital-appointment-app:/app:cached
+      - /app/node_modules
 
 volumes:
   mongo_data:

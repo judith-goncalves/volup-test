@@ -1,8 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
-import { Alert, Button, StyleSheet, View } from "react-native";
+import { Alert, View } from "react-native";
 import AppointmentListModal from "../components/AppointmentListModal";
+import Button from "../components/Button";
 import DoctorsListModal from "../components/DoctorsListModal";
+import { commonStyles } from "../styles/commonStyles";
 import { setAuthToken } from "../utils/api";
 
 interface Props {
@@ -29,17 +31,20 @@ const HomeScreen: React.FC<Props> = ({ onLogout }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Button
-        color="#0d4565ff"
-        title="Doctors"
-        onPress={() => setShowDoctors(true)}
-      />
-      <Button
-        color="#0d4565ff"
-        title="Appointments"
-        onPress={() => setShowAppointments(true)}
-      />
+    <View style={commonStyles.container}>
+      <Button title="Logout" onPress={handleLogout} color="#999" closeList />
+      <View style={{ width: "100%", padding: 10, gap: 25 }}>
+        <Button
+          color="#0d4565ff"
+          title="Doctors"
+          onPress={() => setShowDoctors(true)}
+        />
+        <Button
+          color="#0d4565ff"
+          title="Appointments"
+          onPress={() => setShowAppointments(true)}
+        />
+      </View>
 
       <DoctorsListModal
         visible={showDoctors}
@@ -49,13 +54,8 @@ const HomeScreen: React.FC<Props> = ({ onLogout }) => {
         visible={showAppointments}
         onClose={() => setShowAppointments(false)}
       />
-      <Button color="#FF3B30" title="Logout" onPress={handleLogout} />
     </View>
   );
 };
 
 export default HomeScreen;
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20, gap: 20 },
-});

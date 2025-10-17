@@ -9,12 +9,14 @@ import {
   Text,
   View,
 } from "react-native";
+import { commonStyles } from "../styles/commonStyles";
 import { Doctor } from "../types/doctor";
 import {
   createAppointment,
   fetchDoctors,
   rescheduleAppointment,
 } from "../utils/api";
+import ActionButtons from "./ActionButtons";
 
 interface Props {
   doctor: Doctor;
@@ -42,18 +44,21 @@ const AppointmentModal: React.FC<Props> = ({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(
     currentSlot || null
   );
-  const [slots, setSlots] = useState(doctor.availableSlots || []);
-  const [takenSlots, setTakenSlots] = useState<string[]>(
-    currentSlot ? [currentSlot] : []
-  );
+  const [slots, setSlots] = useState<string[]>(doctor.availableSlots || []);
 
   useEffect(() => {
-    setSlots(doctor.availableSlots || []);
-    if (currentSlot) {
-      setSelectedSlot(currentSlot);
-      setTakenSlots([currentSlot]);
-    }
-  }, [doctor, currentSlot]);
+    const loadUpdatedDoctor = async () => {
+      const updated = await fetchDoctors();
+      const found = updated.find((d) => d._id === doctor._id);
+      if (found) {
+        const available = currentSlot
+          ? [...(found.availableSlots ?? []), currentSlot]
+          : found.availableSlots ?? [];
+        setSlots(available);
+      }
+    };
+    loadUpdatedDoctor();
+  }, [doctor._id, currentSlot]);
 
   const handleAction = async () => {
     if (!selectedSlot) return;
@@ -62,6 +67,11 @@ const AppointmentModal: React.FC<Props> = ({
       if (appointmentId) {
         await rescheduleAppointment(appointmentId, selectedSlot);
         Alert.alert("✅ Success", "Appointment rescheduled successfully");
+        setSlots((prev) =>
+          [...prev.filter((s) => s !== selectedSlot), currentSlot!].filter(
+            Boolean
+          )
+        );
       } else {
         const patientId = await AsyncStorage.getItem("patientId");
         await createAppointment({
@@ -70,32 +80,26 @@ const AppointmentModal: React.FC<Props> = ({
           scheduledAt: selectedSlot,
           status: "CREATED",
         });
-        Alert.alert("✅ Success", "Appointment created successfully");
 
-        setTakenSlots((prev) => [...prev, selectedSlot]);
+        Alert.alert("✅ Success", "Appointment created successfully");
+        setSlots((prev) => prev.filter((s) => s !== selectedSlot));
       }
 
-      const updatedDoctors = await fetchDoctors();
-      const updatedDoctor = updatedDoctors.find((d) => d._id === doctor._id);
-      if (updatedDoctor) setSlots(updatedDoctor.availableSlots || []);
-
       setSelectedSlot(null);
-      if (!appointmentId) onClose();
+      onClose();
     } catch (error: any) {
       Alert.alert("Error", error.message || "Could not complete action");
     }
   };
 
-  const isSlotTaken = (slot: string) => takenSlots.includes(slot);
-
   return (
     <Modal visible transparent>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>
+      <View style={commonStyles.overlay}>
+        <View style={commonStyles.modal}>
+          <Text style={commonStyles.title}>
             {appointmentId
               ? "Reschedule Appointment"
-              : `Book appointment with ${doctor.name}`}
+              : `Book with ${doctor.name}`}
           </Text>
 
           <FlatList
@@ -103,20 +107,19 @@ const AppointmentModal: React.FC<Props> = ({
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <Pressable
-                onPress={() => !isSlotTaken(item) && setSelectedSlot(item)}
+                onPress={() => setSelectedSlot(item)}
                 style={[
-                  styles.slot,
-                  selectedSlot === item && styles.selectedSlot,
-                  isSlotTaken(item) && styles.takenSlot,
+                  localStyles.slot,
+                  selectedSlot === item && localStyles.selectedSlot,
                 ]}
               >
                 <Text
                   style={[
-                    styles.slotText,
-                    isSlotTaken(item) && styles.takenSlotText,
+                    localStyles.slotText,
+                    selectedSlot === item && { color: "#fff" },
                   ]}
                 >
-                  {formatSlot(item)} {isSlotTaken(item) && "(Taken)"}
+                  {formatSlot(item)}
                 </Text>
               </Pressable>
             )}
@@ -127,16 +130,14 @@ const AppointmentModal: React.FC<Props> = ({
             }
           />
 
-          <View style={styles.buttonRow}>
-            <Pressable style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>Close</Text>
-            </Pressable>
-            <Pressable style={styles.saveButton} onPress={handleAction}>
-              <Text style={styles.saveButtonText}>
-                {appointmentId ? "Reschedule" : "Book"}
-              </Text>
-            </Pressable>
-          </View>
+          <ActionButtons
+            onBack={onClose}
+            onNext={handleAction}
+            backLabel="Close"
+            nextLabel={appointmentId ? "Reschedule" : "Book"}
+            backColor="#373232ff"
+            nextColor="#0d4565ff"
+          />
         </View>
       </View>
     </Modal>
@@ -145,10 +146,7 @@ const AppointmentModal: React.FC<Props> = ({
 
 export default AppointmentModal;
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "center", backgroundColor: "#000000aa" },
-  modal: { margin: 20, padding: 20, backgroundColor: "#fff", borderRadius: 8 },
-  title: { fontWeight: "bold", fontSize: 18, marginBottom: 12 },
+const localStyles = StyleSheet.create({
   slot: {
     padding: 8,
     backgroundColor: "#eee",
@@ -156,29 +154,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   selectedSlot: { backgroundColor: "#0d4565ff" },
-  takenSlot: { backgroundColor: "#ccc" },
   slotText: { color: "#000" },
-  takenSlotText: { color: "#888", fontStyle: "italic" },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#FF3B30",
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-    marginRight: 8,
-  },
-  cancelText: { color: "#FFF", fontWeight: "bold" },
-  saveButton: {
-    flex: 1,
-    backgroundColor: "#007AFF",
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  saveButtonText: { color: "#FFF", fontWeight: "bold" },
 });

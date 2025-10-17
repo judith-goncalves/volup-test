@@ -4,18 +4,20 @@ import DateTimePicker, {
 import React, { useState } from "react";
 import {
   Alert,
-  Button,
   FlatList,
   Modal,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { commonStyles } from "../styles/commonStyles";
 import { Doctor } from "../types/doctor";
 import { createDoctor } from "../utils/api";
+import { formatSlot } from "../utils/helpers";
+import ActionButtons from "./ActionButtons";
+import Button from "./Button";
 
 interface Props {
   visible: boolean;
@@ -37,13 +39,6 @@ const AddDoctorModal: React.FC<Props> = ({
   const [pickerMode, setPickerMode] = useState<"date" | "time" | null>(null);
   const [tempDate, setTempDate] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-
-  const formatSlot = (slot: string) => {
-    const date = new Date(slot);
-    return `${date.toLocaleDateString()} ${date
-      .toLocaleTimeString()
-      .slice(0, 5)}`;
-  };
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -96,28 +91,30 @@ const AddDoctorModal: React.FC<Props> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>Add Doctor</Text>
+      <View style={commonStyles.overlay}>
+        <View style={commonStyles.modal}>
+          <Text style={commonStyles.title}>Add Doctor</Text>
 
           <TextInput
             placeholder="Full Name"
             value={newDoctor.name || ""}
             onChangeText={(t) => setNewDoctor({ ...newDoctor, name: t })}
-            style={styles.input}
+            style={commonStyles.input}
           />
           <TextInput
             placeholder="Specialty"
             value={newDoctor.specialty || ""}
             onChangeText={(t) => setNewDoctor({ ...newDoctor, specialty: t })}
-            style={styles.input}
+            style={commonStyles.input}
           />
 
-          <Button
-            title="Add Available Slot"
-            onPress={() => setPickerMode("date")}
-            color="#0d4565ff"
-          />
+          <View style={{ width: "100%", marginVertical: 8 }}>
+            <Button
+              title="Add Available Slot"
+              onPress={() => setPickerMode("date")}
+              color="#0d4565ff"
+            />
+          </View>
 
           {pickerMode && (
             <DateTimePicker
@@ -141,14 +138,16 @@ const AddDoctorModal: React.FC<Props> = ({
             contentContainerStyle={{ paddingVertical: 8 }}
           />
 
-          <View style={styles.buttonRow}>
-            <Pressable style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-            <Pressable style={styles.saveButton} onPress={handleAddDoctor}>
-              <Text style={styles.saveButtonText}>Save</Text>
-            </Pressable>
-          </View>
+          <ActionButtons
+            onBack={onClose}
+            onNext={handleAddDoctor}
+            backLabel="Cancel"
+            nextLabel="Save"
+            backColor="#373232ff"
+            nextColor="#0d4565ff"
+            backTextColor="#FFF"
+            nextTextColor="#FFF"
+          />
         </View>
       </View>
     </Modal>
@@ -158,22 +157,6 @@ const AddDoctorModal: React.FC<Props> = ({
 export default AddDoctorModal;
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "center", backgroundColor: "#00000099" },
-  modal: {
-    margin: 20,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    gap: 12,
-  },
-  title: { fontSize: 18, fontWeight: "bold", textAlign: "center" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 8,
-  },
   slotCard: {
     backgroundColor: "#eef4f7",
     padding: 8,
@@ -181,26 +164,4 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   slotText: { color: "#0d4565ff", fontWeight: "600" },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#FF3B30",
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-    marginRight: 8,
-  },
-  cancelText: { color: "#FFF", fontWeight: "bold" },
-  saveButton: {
-    flex: 1,
-    backgroundColor: "#007AFF",
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  saveButtonText: { color: "#FFF", fontWeight: "bold" },
 });

@@ -4,12 +4,12 @@ import {
   Alert,
   FlatList,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Appointment } from "../types/appointment";
+import { commonStyles } from "../styles/commonStyles";
+import { Appointment, AppointmentStatus } from "../types/appointment";
 import { Doctor } from "../types/doctor";
 import { Patient } from "../types/patient";
 import {
@@ -17,8 +17,10 @@ import {
   fetchAppointments,
   fetchDoctors,
   fetchPatients,
+  updateAppointmentStatus,
 } from "../utils/api";
-import CreateAppointment from "./BookAppointment";
+import BookAppointment from "./BookAppointment";
+import Button from "./Button";
 
 interface Props {
   visible: boolean;
@@ -40,8 +42,7 @@ const AppointmentListModal: React.FC<Props> = ({ visible, onClose }) => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const [rescheduleAppointmentData, setRescheduleAppointmentData] = useState<{
+  const [rescheduleData, setRescheduleData] = useState<{
     appointmentId: string;
     doctor: Doctor;
     currentSlot: string;
@@ -69,27 +70,52 @@ const AppointmentListModal: React.FC<Props> = ({ visible, onClose }) => {
     if (visible) loadData();
   }, [visible]);
 
-  // Helpers seguros
-  const getDoctorName = (appt: Appointment): string => {
-    if (typeof appt.doctorId === "object" && appt.doctorId?.name)
-      return appt.doctorId.name;
-    const d = doctors.find((doc) => doc._id === appt.doctorId);
-    return d?.name ?? "Desconocido";
-  };
+  const getDoctorObject = (appt: Appointment) =>
+    typeof appt.doctorId === "object"
+      ? appt.doctorId
+      : doctors.find((d) => d._id === appt.doctorId) || null;
 
-  const getPatientName = (appt: Appointment): string => {
-    if (typeof appt.patientId === "object" && appt.patientId?.name)
-      return appt.patientId.name;
-    const p = patients.find((pat) => pat._id === appt.patientId);
-    return p?.name ?? "Desconocido";
-  };
+  const getDoctorName = (appt: Appointment) =>
+    getDoctorObject(appt)?.name ?? "";
 
-  const getDoctorObject = (appt: Appointment): Doctor | null => {
-    if (typeof appt.doctorId === "object") return appt.doctorId;
-    return doctors.find((d) => d._id === appt.doctorId) || null;
+  const getPatientName = (appt: Appointment) =>
+    typeof appt.patientId === "object"
+      ? appt.patientId.name
+      : patients.find((p) => p._id === appt.patientId)?.name ?? "";
+
+  const handleStatusAdvance = async (appt: Appointment) => {
+    let nextStatus: AppointmentStatus | null = null;
+    if (appt.status === "CREATED") nextStatus = "CONFIRMED";
+    else if (appt.status === "CONFIRMED") nextStatus = "COMPLETED";
+    if (!nextStatus) return;
+
+    try {
+      await updateAppointmentStatus(appt._id!, nextStatus);
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a._id === appt._id ? { ...a, status: nextStatus! } : a
+        )
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Could not update status");
+    }
   };
 
   const handleCancel = async (appt: Appointment) => {
+    const appointmentDate = new Date(appt.scheduledAt);
+    const now = new Date();
+
+    const differenceMs = appointmentDate.getTime() - now.getTime();
+    const differenceHours = differenceMs / (1000 * 60 * 60);
+
+    if (differenceHours < 24) {
+      Alert.alert(
+        "Cannot cancel",
+        "Appointments can only be canceled at least 24 hours in advance."
+      );
+      return;
+    }
+
     const confirmed = await new Promise<boolean>((resolve) => {
       Alert.alert("Cancel appointment", "Are you sure?", [
         { text: "No", onPress: () => resolve(false) },
@@ -100,7 +126,11 @@ const AppointmentListModal: React.FC<Props> = ({ visible, onClose }) => {
 
     try {
       await cancelAppointment(appt._id!);
-      setAppointments((prev) => prev.filter((a) => a._id !== appt._id));
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a._id === appt._id ? { ...a, status: "CANCELLED" } : a
+        )
+      );
       Alert.alert("✅ Success", "Appointment canceled");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Could not cancel appointment");
@@ -112,63 +142,88 @@ const AppointmentListModal: React.FC<Props> = ({ visible, onClose }) => {
   return (
     <Modal visible={visible} animationType="slide">
       <View style={styles.container}>
-        <Text style={styles.title}>Appointments</Text>
+        <Text style={commonStyles.title}>Appointments</Text>
 
-        <Pressable style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeText}>Close</Text>
-        </Pressable>
+        <Button title="Close" onPress={onClose} color="#999" closeList />
 
         {loading ? (
           <ActivityIndicator size="large" color="#007AFF" />
         ) : appointments.length === 0 ? (
-          <Text style={styles.emptyText}>No appointments registered.</Text>
+          <Text style={commonStyles.emptyText}>
+            No appointments registered.
+          </Text>
         ) : (
           <FlatList
             data={appointments}
             keyExtractor={(item) => item._id!}
             renderItem={({ item }) => {
               const doctor = getDoctorObject(item);
+              const isFinal =
+                item.status === "COMPLETED" || item.status === "CANCELLED";
+
               return (
-                <View style={styles.card}>
-                  <Text style={styles.row}>
-                    <Text style={styles.label}>Doctor:</Text>{" "}
+                <View style={commonStyles.card}>
+                  <Text style={commonStyles.row}>
+                    <Text style={commonStyles.label}>Doctor:</Text>{" "}
                     {getDoctorName(item)}
                   </Text>
-                  <Text style={styles.row}>
-                    <Text style={styles.label}>Patient:</Text>{" "}
+                  <Text style={commonStyles.row}>
+                    <Text style={commonStyles.label}>Patient:</Text>{" "}
                     {getPatientName(item)}
                   </Text>
-                  <Text style={styles.row}>
-                    <Text style={styles.label}>Date:</Text>{" "}
+                  <Text style={commonStyles.row}>
+                    <Text style={commonStyles.label}>Date:</Text>{" "}
                     {formatDate(item.scheduledAt)}
                   </Text>
-                  <Text style={styles.row}>
-                    <Text style={styles.label}>Status:</Text> {item.status}
+                  <Text style={commonStyles.row}>
+                    <Text style={commonStyles.label}>Status: </Text>
+                    <Text
+                      style={{
+                        color:
+                          item.status === "CANCELLED"
+                            ? "red"
+                            : item.status === "COMPLETED"
+                            ? "green"
+                            : "#000",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {item.status}
+                    </Text>
                   </Text>
 
-                  <View style={styles.buttonRow}>
-                    <Pressable
-                      style={styles.cancelButton}
-                      onPress={() => handleCancel(item)}
-                    >
-                      <Text style={styles.cancelText}>Cancel</Text>
-                    </Pressable>
-
-                    {doctor && (
-                      <Pressable
-                        style={styles.rescheduleButton}
-                        onPress={() =>
-                          setRescheduleAppointmentData({
-                            appointmentId: item._id!,
-                            doctor,
-                            currentSlot: item.scheduledAt,
-                          })
-                        }
-                      >
-                        <Text style={styles.rescheduleText}>Reschedule</Text>
-                      </Pressable>
-                    )}
-                  </View>
+                  {!isFinal && (
+                    <View style={commonStyles.buttonRow}>
+                      <Button
+                        title="Cancel"
+                        onPress={() => handleCancel(item)}
+                        color="#6e0606ff"
+                      />
+                      {(item.status === "CREATED" ||
+                        item.status === "CONFIRMED") && (
+                        <Button
+                          title={
+                            item.status === "CREATED" ? "Confirm" : "Complete"
+                          }
+                          onPress={() => handleStatusAdvance(item)}
+                          color="#0d4565ff"
+                        />
+                      )}
+                      {doctor && (
+                        <Button
+                          title="Reschedule"
+                          onPress={() =>
+                            setRescheduleData({
+                              appointmentId: item._id!,
+                              doctor,
+                              currentSlot: item.scheduledAt,
+                            })
+                          }
+                          color="#065a48ff"
+                        />
+                      )}
+                    </View>
+                  )}
                 </View>
               );
             }}
@@ -176,13 +231,13 @@ const AppointmentListModal: React.FC<Props> = ({ visible, onClose }) => {
           />
         )}
 
-        {rescheduleAppointmentData && (
-          <CreateAppointment
-            doctor={rescheduleAppointmentData.doctor}
-            appointmentId={rescheduleAppointmentData.appointmentId}
-            currentSlot={rescheduleAppointmentData.currentSlot}
+        {rescheduleData && (
+          <BookAppointment
+            doctor={rescheduleData.doctor}
+            appointmentId={rescheduleData.appointmentId}
+            currentSlot={rescheduleData.currentSlot}
             onClose={() => {
-              setRescheduleAppointmentData(null);
+              setRescheduleData(null);
               loadData();
             }}
           />
@@ -191,61 +246,7 @@ const AppointmentListModal: React.FC<Props> = ({ visible, onClose }) => {
     </Modal>
   );
 };
-
-export default AppointmentListModal;
-
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 8, color: "#222" },
-  closeButton: {
-    alignSelf: "flex-end",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: "#999",
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  closeText: { color: "#fff", fontWeight: "bold" },
-  card: {
-    borderWidth: 1,
-    borderColor: "#DDD",
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 6,
-    backgroundColor: "#F9FAFB",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 2,
-  },
-  row: { marginBottom: 4, fontSize: 16, color: "#333" },
-  label: { fontWeight: "bold", color: "#000" },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#FF3B30",
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-    marginRight: 8,
-  },
-  cancelText: { color: "#FFF", fontWeight: "bold" },
-  rescheduleButton: {
-    flex: 1,
-    backgroundColor: "#007AFF",
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  rescheduleText: { color: "#FFF", fontWeight: "bold" },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 20,
-    color: "gray",
-    fontSize: 16,
-  },
 });
+export default AppointmentListModal;

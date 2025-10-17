@@ -4,53 +4,6 @@ import { Doctor } from "../models/Doctor";
 import { appointmentSchema } from "../schemas/appointmentSchema";
 import { validTransition } from "../utils/validateStatus";
 
-export const createAppointment = async (req: Request, res: Response) => {
-  try {
-    const { doctorId, patientId, scheduledAt, notes } = appointmentSchema.parse(
-      req.body
-    );
-
-    const doctor = await Doctor.findById(doctorId);
-    if (!doctor || !doctor.isActive)
-      return res.status(404).json({ message: "Doctor not found or inactive" });
-    if (!doctor.availableSlots.includes(scheduledAt))
-      return res.status(400).json({ message: "Scheduled time not available" });
-
-    const overlap = await Appointment.findOne({
-      doctorId,
-      scheduledAt: new Date(scheduledAt),
-      status: { $in: ["CREATED", "CONFIRMED"] },
-    });
-    if (overlap)
-      return res
-        .status(400)
-        .json({ message: "Doctor already has an appointment at this time" });
-
-    const newAppointment = await Appointment.create({
-      doctorId,
-      patientId,
-      scheduledAt: new Date(scheduledAt),
-      notes,
-      status: "CREATED",
-    });
-
-    doctor.availableSlots = doctor.availableSlots.filter(
-      (slot) => slot !== scheduledAt
-    );
-    await doctor.save();
-
-    res
-      .status(201)
-      .json({ message: "Appointment created", appointment: newAppointment });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      message: "Error creating appointment",
-      error: (err as Error).message,
-    });
-  }
-};
-
 export const getAllAppointments = async (req: Request, res: Response) => {
   try {
     const {
@@ -107,32 +60,48 @@ export const getAppointmentById = async (req: Request, res: Response) => {
   }
 };
 
-export const updateAppointmentStatus = async (req: Request, res: Response) => {
+export const createAppointment = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { newStatus } = req.body;
+    const { doctorId, patientId, scheduledAt, notes } = appointmentSchema.parse(
+      req.body
+    );
 
-    const appointment = await Appointment.findById(id);
-    if (!appointment)
-      return res.status(404).json({ message: "Appointment not found" });
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor || !doctor.isActive)
+      return res.status(404).json({ message: "Doctor not found or inactive" });
+    if (!doctor.availableSlots.includes(scheduledAt))
+      return res.status(400).json({ message: "Scheduled time not available" });
 
-    if (!validTransition(appointment.status, newStatus)) {
-      return res.status(400).json({
-        message: `Invalid transition from ${appointment.status} to ${newStatus}`,
-      });
-    }
-
-    appointment.status = newStatus;
-    await appointment.save();
-
-    res.json({
-      message: `Appointment status updated (${appointment.status} → ${newStatus})`,
-      appointment,
+    const overlap = await Appointment.findOne({
+      doctorId,
+      scheduledAt: new Date(scheduledAt),
+      status: { $in: ["CREATED", "CONFIRMED"] },
     });
+    if (overlap)
+      return res
+        .status(400)
+        .json({ message: "Doctor already has an appointment at this time" });
+
+    const newAppointment = await Appointment.create({
+      doctorId,
+      patientId,
+      scheduledAt: new Date(scheduledAt),
+      notes,
+      status: "CREATED",
+    });
+
+    doctor.availableSlots = doctor.availableSlots.filter(
+      (slot) => slot !== scheduledAt
+    );
+    await doctor.save();
+
+    res
+      .status(201)
+      .json({ message: "Appointment created", appointment: newAppointment });
   } catch (err) {
     console.error(err);
     res.status(500).json({
-      message: "Error updating appointment status",
+      message: "Error creating appointment",
       error: (err as Error).message,
     });
   }
@@ -213,5 +182,36 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error rescheduling appointment" });
+  }
+};
+
+export const updateAppointmentStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status: newStatus } = req.body;
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment)
+      return res.status(404).json({ message: "Appointment not found" });
+
+    if (!validTransition(appointment.status, newStatus)) {
+      return res.status(400).json({
+        message: `Invalid transition from ${appointment.status} to ${newStatus}`,
+      });
+    }
+
+    appointment.status = newStatus;
+    await appointment.save();
+
+    res.json({
+      message: `Appointment status updated (${appointment.status} → ${newStatus})`,
+      appointment,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Error updating appointment status",
+      error: (err as Error).message,
+    });
   }
 };

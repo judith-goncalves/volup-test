@@ -9,7 +9,7 @@ try {
     $_.InterfaceAlias -notmatch "vEthernet" -and $_.IPAddress -notlike "169.*" -and $_.IPAddress -notlike "127.*"
     } | Select-Object -First 1).IPAddress
 
-    Write-Host "IP detectada: $env:LOCAL_IP"
+    Write-Host "IP detectada"
 
 } catch {
     Write-Host "Error detectando IP local: $_"

@@ -1,6 +1,10 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-import { Appointment, RescheduleResponse } from "../types/appointment";
+import {
+  Appointment,
+  AppointmentStatus,
+  RescheduleResponse,
+} from "../types/appointment";
 import { Doctor } from "../types/doctor";
 import { Patient } from "../types/patient";
 
@@ -107,7 +111,7 @@ export const rescheduleAppointment = async (
 
 export const updateAppointmentStatus = async (
   appointmentId: string,
-  status: "CREATED" | "CONFIRMED" | "COMPLETED"
+  status: AppointmentStatus
 ): Promise<ApiResponse<Appointment>> => {
   const res = await fetch(`${API_URL}/appointments/${appointmentId}/status`, {
     method: "PATCH",
@@ -116,7 +120,7 @@ export const updateAppointmentStatus = async (
   });
 
   if (!res.ok) {
-    const err = await res.json();
+    const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Failed to update appointment status");
   }
 
